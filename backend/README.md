@@ -2,103 +2,167 @@
 # Mernova Backend — Testing Documentation
 
 **Tested by:** Adam Mohamed  
-**Test date:** November 18, 2026
+**Test Date:** November 18, 2026
 
 ## 1. Backend Setup
 
-The backend was tested using a fresh clone of the main branch.
+The backend was tested using a fresh clone of the `main` branch.
 
-Commands used:
+### Installation Steps
+
+Clone the repository:
 
 ```powershell
 git clone https://github.com/youssefahmed1911-ux/mernova.git
+```
+
+Navigate to the backend directory:
+
+```powershell
 cd mernova/backend
+```
+
+Install the required dependencies:
+
+```powershell
 npm install
 ```
 
-Result: Dependencies installed successfully with 0 vulnerabilities reported.
+**Result:** PASS — Dependencies installed successfully with 0 vulnerabilities reported.
 
 ## 2. Environment Configuration
 
-Created a local `.env` file from `.env.example` using:
+Create a local `.env` file from `.env.example`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Configured the following environment variables:
+Configure the required variables:
 
 ```dotenv
 MONGODB_URI=<your MongoDB connection string>
 JWT_SECRET=<your local secret>
 ```
 
-The real `.env` file must never be uploaded to GitHub.
+The `.env` file contains sensitive information and must never be committed to GitHub.
 
-## 3. Backend Startup
+## 3. Backend Startup Testing
 
-Initially, running:
+Initially, the standard startup command:
 
 ```powershell
 npm start
 ```
 
-Failed with:
+Failed with the following error:
 
 ```text
 MongoDB connection failed: querySrv EBADRESP
 ```
 
-Windows DNS lookup succeeded, but Node.js failed to resolve the MongoDB SRV record using its default DNS resolver.
+The error was related to DNS resolution of MongoDB Atlas SRV records.
 
-The following workaround was used:
+### DNS Investigation
+
+The following tests were performed:
+
+- Windows `nslookup`: PASS
+- Node.js DNS lookup using default DNS servers: FAIL
+- Node.js DNS lookup using Google and Cloudflare DNS: PASS
+
+This indicated a DNS resolver issue on the testing machine.
+
+### DNS Solution
+
+A temporary DNS configuration was created outside the project directory:
 
 ```powershell
-node -e "require('dns').setServers(['8.8.8.8','1.1.1.1']); require('./server.js')"
+"require('node:dns').setServers(['8.8.8.8', '1.1.1.1']);" | Set-Content "$env:TEMP\mernova-dns.cjs"
 ```
 
-After applying this workaround, the terminal displayed:
+The Node.js environment was configured to load the temporary file:
+
+```powershell
+$env:NODE_OPTIONS="--require=$env:TEMP\mernova-dns.cjs"
+```
+
+The backend was then started using:
+
+```powershell
+npm start
+```
+
+**Result: PASS**
+
+The terminal confirmed:
 
 ```text
 MongoDB connected
 Mernova backend listening on port 3000
 ```
 
+This solution did not require modifying the backend source code or Windows DNS settings.
+
+To remove the temporary Node.js configuration from the current PowerShell session:
+
+```powershell
+Remove-Item Env:NODE_OPTIONS
+```
+
 ## 4. Health Endpoint Testing
 
-The endpoint was tested using:
+The backend health endpoint was tested using:
 
 ```powershell
 curl.exe -i http://localhost:3000/api/health
 ```
 
-Expected and actual results:
+The verified HTTP status was:
 
-- HTTP status: 200 OK
-- Endpoint: GET /api/health
-- JSON response: `{"status":"ok"}`
+```text
+HTTP/1.1 200 OK
+```
 
-The health check passed successfully.
+The verified JSON response was:
+
+```json
+{"status":"ok"}
+```
+
+**Result: PASS**
+
+The health endpoint returned the expected response successfully.
 
 ## 5. Test Results
 
 | Test | Result |
 |---|---|
-| Clone repository from main | PASS |
+| Fresh clone of main | PASS |
 | npm install | PASS |
-| npm start with default DNS | FAIL — EBADRESP |
-| MongoDB connection with DNS workaround | PASS |
-| Express server on port 3000 | PASS |
+| npm start using default DNS | FAIL — EBADRESP |
+| Windows MongoDB DNS lookup | PASS |
+| Node.js DNS lookup using default DNS | FAIL |
+| Node.js DNS lookup using alternative DNS | PASS |
+| npm start with temporary DNS configuration | PASS |
+| MongoDB connection | PASS |
+| Express server running on port 3000 | PASS |
 | GET /api/health | PASS |
-| HTTP 200 OK | PASS |
+| HTTP response 200 OK | PASS |
 | JSON response {"status":"ok"} | PASS |
 
 ## 6. Conclusion
 
-The backend successfully connected to MongoDB, started on port 3000, and returned the expected health-check response.
+The Mernova backend was successfully tested.
 
-The original npm start command failed due to a DNS resolution issue on the testing machine. The backend worked after using alternative DNS servers.
+The backend connected to MongoDB Atlas and started an Express server on port 3000.
 
-The DNS issue should be reported to Youssef Shaaban and Hamza Mohamed for investigation.
+An initial DNS resolution error prevented normal startup using the default DNS configuration. The issue was resolved for the testing session by configuring alternative DNS servers through `NODE_OPTIONS`.
 
-**Overall result:** Backend functionality verified using the DNS workaround. Standard startup remains unresolved on the test machine.
+The health endpoint returned HTTP 200 OK with the expected JSON response.
+
+**Overall Result:** PASS — Backend startup and health endpoint successfully verified using the documented DNS configuration.
+
+**Note:** The default DNS resolution issue remains unresolved on the testing machine and should be reported to the backend developers.
+
+**Tested by:** Adam Mohamed
