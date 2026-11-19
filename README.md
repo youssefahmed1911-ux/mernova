@@ -170,4 +170,4 @@ npm install
 npm run dev
 ```
 
-The app runs on [the address `npm run dev` prints, e.g. http://localhost:5173]. Done
+The app runs on [the address `npm run dev` prints, e.g. http://localhost:5173].
